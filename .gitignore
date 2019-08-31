@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/linux-csgo-dlang
+linux-csgo-dlang.so
+linux-csgo-dlang.dylib
+linux-csgo-dlang.dll
+linux-csgo-dlang.a
+linux-csgo-dlang.lib
+linux-csgo-dlang-test-*
+*.exe
+*.o
+*.obj
+*.lst

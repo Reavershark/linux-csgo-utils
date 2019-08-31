@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"jonas"
+	],
+	"copyright": "Copyright © 2019, jonas",
+	"dependencies": {
+		"x11": "~>1.0.21"
+	},
+	"description": "Light csgo hack",
+	"license": "proprietary",
+	"name": "linux-csgo-dlang"
+}
