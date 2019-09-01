@@ -21,10 +21,3 @@ ssize_t process_vm_writev (
     const(iovec)* __rvec,
     c_ulong __riovcnt,
     c_ulong __flags);
-
-/* Flags for preadv2/pwritev2.  */
-enum RWF_HIPRI = 0x00000001; /* High priority request.  */
-enum RWF_DSYNC = 0x00000002; /* per-IO O_DSYNC.  */
-enum RWF_SYNC = 0x00000004; /* per-IO O_SYNC.  */
-enum RWF_NOWAIT = 0x00000008; /* per-IO nonblocking mode.  */
-enum RWF_APPEND = 0x00000010; /* per-IO O_APPEND.  */
