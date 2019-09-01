@@ -1,12 +1,13 @@
 module memory;
 
 import std.algorithm;
+import std.array;
 import std.conv : to;
 import std.format;
 import std.string : lastIndexOf;
 import std.process;
-import std.stdio;
-import std.range;
+import std.stdio : File;
+import std.range : split;
 
 import core.sys.posix.sys.types;
 import core.sys.posix.sys.uio;
@@ -22,32 +23,32 @@ pid_t pidof(string name)
     return pid;
 }
 
+public struct MemoryRegion {
+	// Memory
+	ulong start = 0;
+	ulong end = 0;
+
+	// Permissions
+	bool readable;
+	bool writable;
+	bool executable;
+	bool sharedMemory;
+
+	// File data
+	ulong offset;
+	ushort deviceMajor;
+	ushort deviceMinor;
+	ulong inodeFileNumber;
+	string pathname;
+	string filename;
+
+	//void* find(Handle handle, const char* data, const char* pattern);
+};
+
 class Handle
 {
     private pid_t pid;
     private MemoryRegion[] regions;
-
-    public struct MemoryRegion {
-    	// Memory
-    	ulong start = 0;
-    	ulong end = 0;
-    
-    	// Permissions
-    	bool readable;
-    	bool writable;
-    	bool executable;
-    	bool sharedMemory;
-    
-    	// File data
-    	ulong offset;
-    	ushort deviceMajor;
-    	ushort deviceMinor;
-    	ulong inodeFileNumber;
-    	string pathname;
-    	string filename;
-    
-    	//void* find(Handle handle, const char* data, const char* pattern);
-    };
 
     this(pid_t pid)
     {
@@ -77,10 +78,9 @@ class Handle
         regions = [];
 
         auto maps = File("/proc/" ~ to!string(pid) ~ "/maps", "r");
-        foreach(lineStr; maps.byLine())
+        foreach(line; maps.byLine().map!split)
         {
-            auto line = lineStr.split;
-            MemoryRegion* region = new MemoryRegion;
+            MemoryRegion region;
             auto hexSpec = singleSpec("%x");
 
             // 1st column
@@ -116,12 +116,27 @@ class Handle
                 }
                 else
                 {
-                    long index = lastIndexOf(line[5], '/') + 1;
-                    region.pathname = to!string(line[5][0 .. index]);
-                    region.filename = to!string(line[5][index .. $]);
+                    // Add back spaces
+                    string fullpath;
+                    bool first = true;
+                    foreach(word; line[5 .. $])
+                    {
+                        if (!first)
+                            fullpath ~= " " ~ word;
+                        else
+                        {
+                            first = false;
+                            fullpath ~= word;
+                        }
+
+                    }
+                    
+                    long index = lastIndexOf(fullpath, '/') + 1;
+                    region.pathname = to!string(fullpath[0 .. index]);
+                    region.filename = to!string(fullpath[index .. $]);
                 }
             }
-            regions = regions ~ *region;
+            regions ~= region;
         }
     }
 }

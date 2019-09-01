@@ -7,11 +7,17 @@ void main()
 {
     auto offsets = new Offsets("data/csgo.json");
 
-    int pid = pidof("vim");
+    int pid = pidof("csgo_linux64");
     Handle handle = new Handle(pid);
 
-    //foreach(region; handle.getRegions())
-    //{
-    //    writeln(region.pathname);
-    //}
+    MemoryRegion clientRegion;
+    foreach(region; handle.getRegions())
+    {
+        if (region.filename == "client_panorama_client.so")
+        {
+            clientRegion = region;
+            break;
+        }
+    }
+    writeln(clientRegion);
 }
