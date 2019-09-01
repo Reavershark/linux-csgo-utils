@@ -1,11 +1,12 @@
 module memory;
 
 import std.algorithm;
-import std.container.array;
-import std.conv;
+import std.conv : to;
+import std.format;
+import std.string : lastIndexOf;
 import std.process;
-import std.string;
 import std.stdio;
+import std.range;
 
 import core.sys.posix.sys.types;
 import core.sys.posix.sys.uio;
@@ -24,11 +25,12 @@ pid_t pidof(string name)
 class Handle
 {
     private pid_t pid;
+    private MemoryRegion[] regions;
 
-    struct MemoryRegion {
+    public struct MemoryRegion {
     	// Memory
-    	ulong start;
-    	ulong end;
+    	ulong start = 0;
+    	ulong end = 0;
     
     	// Permissions
     	bool readable;
@@ -38,16 +40,25 @@ class Handle
     
     	// File data
     	ulong offset;
-    	char deviceMajor;
-    	char deviceMinor;
+    	ushort deviceMajor;
+    	ushort deviceMinor;
     	ulong inodeFileNumber;
     	string pathname;
     	string filename;
     
-    	ulong client_start;
-    
     	//void* find(Handle handle, const char* data, const char* pattern);
     };
+
+    this(pid_t pid)
+    {
+        this.pid = pid;
+        parseMaps();
+    }
+
+    public MemoryRegion[] getRegions()
+    {
+        return regions.dup;
+    }
 
     public bool read(void* address, void* buffer, size_t size) {
         iovec[1] local;
@@ -61,100 +72,56 @@ class Handle
         return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
     }
 
-    this(pid_t pid)
+    private void parseMaps()
     {
-        this.pid = pid;
-        parseMaps();
-    }
+        regions = [];
 
-    void parseMaps() {
-        Array!MemoryRegion regions;
-        regions.clear();
-    
         auto maps = File("/proc/" ~ to!string(pid) ~ "/maps", "r");
+        foreach(lineStr; maps.byLine())
+        {
+            auto line = lineStr.split;
+            MemoryRegion* region = new MemoryRegion;
+            auto hexSpec = singleSpec("%x");
 
-        writeln(maps.byLine().map!split.map!(a => a.length).fold!(min, max));
-    
-        foreach(line; maps.byLine().map!split) {
-            string memorySpace, permissions, offset, device, inode, pathname;
-            memorySpace = line[0].dup;
-            permissions = line[1].dup;
-            offset = line[2].dup;
-            device = line[3].dup;
-            inode = line[4].dup;
-            pathname = line[4].dup;
+            // 1st column
+            string[] memorySpace = cast(string[]) line[0].split("-");
+            region.start = memorySpace[0].unformatValue!ulong(hexSpec);
+            region.end = memorySpace[1].unformatValue!ulong(hexSpec);
 
-            MemoryRegion region;
-    
-            /*
-            if (iss >> memorySpace >> permissions >> offset >> device >> inode) {
-                std::string pathname;
-    
-                for (size_t ls = 0, i = 0; i < line.length(); i++) {
-                    if (line.substr(i, 1).compare(" ") == 0) {
-                        ls++;
-    
-                        if (ls == 5) {
-                            size_t begin = line.substr(i, line.size()).find_first_not_of(' ');
-    
-                            if (begin != -1) {
-                                pathname = line.substr(begin + i, line.size());
-                            } else {
-                                pathname.clear();
-                            }
-                        }
-                    }
+            // 2nd column
+            string permissions = line[1].idup;
+            region.readable = (permissions[0] == 'r');
+            region.writable = (permissions[1] == 'w');
+            region.executable = (permissions[2] == 'x');
+            region.sharedMemory = (permissions[3] != '-');
+
+            // 3rd column
+            region.offset = line[2].unformatValue!ulong(hexSpec);
+
+            // 4th column
+            string[] device = cast(string[]) line[3].split(":");
+            region.deviceMajor = device[0].unformatValue!ushort(hexSpec);
+            region.deviceMinor = device[1].unformatValue!ushort(hexSpec);
+
+            // 5th column
+            region.inodeFileNumber = to!ulong(line[4]);
+
+            // 6th column
+            if (line.length > 5)
+            {
+                if (region.inodeFileNumber == 0)
+                {
+                    // [heap], [stack]...
+                    region.filename = to!string(line[5]);
                 }
-    
-                MapModuleMemoryRegion region;
-    
-                size_t memorySplit = memorySpace.find_first_of('-');
-                size_t deviceSplit = device.find_first_of(':');
-    
-                std::stringstream ss;
-    
-                if (memorySplit != -1) {
-                    ss << std::hex << memorySpace.substr(0, memorySplit);
-                    ss >> region.start;
-                    ss.clear();
-                    ss << std::hex << memorySpace.substr(memorySplit + 1, memorySpace.size());
-                    ss >> region.end;
-                    ss.clear();
+                else
+                {
+                    long index = lastIndexOf(line[5], '/') + 1;
+                    region.pathname = to!string(line[5][0 .. index]);
+                    region.filename = to!string(line[5][index .. $]);
                 }
-    
-                if (deviceSplit != -1) {
-                    ss << std::hex << device.substr(0, deviceSplit);
-                    ss >> region.deviceMajor;
-                    ss.clear();
-                    ss << std::hex << device.substr(deviceSplit + 1, device.size());
-                    ss >> region.deviceMinor;
-                    ss.clear();
-                }
-    
-                ss << std::hex << offset;
-                ss >> region.offset;
-                ss.clear();
-                ss << inode;
-                ss >> region.inodeFileNumber;
-    
-                region.readable = (permissions[0] == 'r');
-                region.writable = (permissions[1] == 'w');
-                region.executable = (permissions[2] == 'x');
-                region.shared = (permissions[3] != '-');
-    
-                if (!pathname.empty()) {
-                    region.pathname = pathname;
-    
-                    size_t fileNameSplit = pathname.find_last_of('/');
-    
-                    if (fileNameSplit != -1) {
-                        region.filename = pathname.substr(fileNameSplit + 1, pathname.size());
-                    }
-                }
-    
-                regions.push_back(region);
             }
-            */
+            regions = regions ~ *region;
         }
     }
 }
