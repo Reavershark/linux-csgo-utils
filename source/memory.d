@@ -1,6 +1,9 @@
+import std.algorithm.iteration;
+import std.container.array;
 import std.conv;
 import std.process;
 import std.string;
+import std.stdio;
 
 import core.sys.posix.sys.types;
 import core.sys.posix.sys.uio;
@@ -28,16 +31,43 @@ bool Read(pid_t pid, void* address, void* buffer, size_t size) {
     return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
 }
 
-/*
-void ParseMaps() {
+struct MemoryRegion {
+public:
+	// Memory
+	ulong start;
+	ulong end;
+
+	// Permissions
+	bool readable;
+	bool writable;
+	bool executable;
+	bool sharedMemory;
+
+	// File data
+	ulong offset;
+	char deviceMajor;
+	char deviceMinor;
+	ulong inodeFileNumber;
+	string pathname;
+	string filename;
+
+	ulong client_start;
+
+	//void* find(Handle handle, const char* data, const char* pattern);
+};
+
+void ParseMaps(pid_t pid) {
+    Array!MemoryRegion regions;
     regions.clear();
 
-    std::ifstream maps("/proc/" + pidStr + "/maps");
+    auto maps = File("/proc/" ~ to!string(pid) ~ "/maps", "r");
 
-    std::string line;
-    while (std::getline(maps, line)) {
-        std::istringstream iss(line);
-        std::string memorySpace, permissions, offset, device, inode;
+    foreach(line; maps.byLine().map!split) {
+        string memorySpace, permissions, offset, device, inode;
+        writeln(line);
+        MemoryRegion region;
+
+        /*
         if (iss >> memorySpace >> permissions >> offset >> device >> inode) {
             std::string pathname;
 
@@ -105,6 +135,6 @@ void ParseMaps() {
 
             regions.push_back(region);
         }
+        */
     }
 }
-*/
