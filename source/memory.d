@@ -42,7 +42,44 @@ public struct MemoryRegion {
 	string pathname;
 	string filename;
 
-	//void* find(Handle handle, const char* data, const char* pattern);
+	ulong find(Handle handle, string data, string pattern)
+    {
+		char[0x1000] buffer;
+
+		size_t len = pattern.length;
+		size_t chunksize = buffer.sizeof;
+		size_t totalsize = end - start;
+		size_t chunknum = 0;
+		size_t matches = 0;
+
+		while (totalsize) {
+			size_t readsize = (totalsize < chunksize) ? totalsize : chunksize;
+			size_t readaddr = start + (chunksize * chunknum);
+
+            buffer = 0;
+
+			if (handle.read(cast(void*) readaddr, cast(void*) buffer, readsize)) {
+				for (size_t b = 0; b < readsize; b++) {
+					for (size_t t = b; t < readsize; t++) {
+						if (buffer[t] != data[matches] && pattern[matches] == 'x') {
+							matches = 0;
+							break;
+						}
+						matches++;
+
+						if (matches == len) {
+							return cast(char*) (readaddr + t - matches + 1);
+						}
+					}
+				}
+			}
+
+			totalsize -= readsize;
+			chunknum++;
+		}
+
+		return 0;
+    }
 };
 
 class Handle
@@ -61,16 +98,46 @@ class Handle
         return regions.dup;
     }
 
-    public bool read(void* address, void* buffer, size_t size) {
+    T read(T)(ulong address) {
+
+        size_t size = T.sizeof;
+
+        T[1] buffer;
+
         iovec[1] local;
         iovec[1] remote;
     
-        local[0].iov_base = buffer;
+        local[0].iov_base = cast(void*) buffer;
         local[0].iov_len = size;
-        remote[0].iov_base = address;
+        remote[0].iov_base = cast(void*) address;
         remote[0].iov_len = size;
     
-        return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
+        process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0);
+
+        return buffer[0];
+    }
+
+    bool read(void* address, void* buffer, size_t size)
+    {
+		iovec[1] local;
+		iovec[1] remote;
+
+		local[0].iov_base = buffer;
+		local[0].iov_len = size;
+		remote[0].iov_base = address;
+		remote[0].iov_len = size;
+
+		return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
+    }
+
+    ulong GetAbsoluteAddress(void* address, int offset, int size) {
+        int code = 0;
+    
+        if (read(cast(char*) (cast(ulong) address + offset), &code, uint.sizeof)) {
+            return code + cast(ulong) address + size;
+        }
+    
+        return 0;
     }
 
     private void parseMaps()
