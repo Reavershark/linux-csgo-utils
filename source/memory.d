@@ -8,6 +8,7 @@ import std.string : lastIndexOf;
 import std.process;
 import std.stdio : File;
 import std.range : split;
+import std.string : fromStringz;
 
 import core.sys.posix.sys.types;
 import core.sys.posix.sys.uio;
@@ -23,7 +24,7 @@ pid_t pidof(string name)
     return pid;
 }
 
-public struct MemoryRegion {
+struct MemoryRegion {
 	// Memory
 	ulong start = 0;
 	ulong end = 0;
@@ -93,12 +94,12 @@ class Handle
         parseMaps();
     }
 
-    public MemoryRegion[] getRegions()
+    MemoryRegion[] getRegions()
     {
         return regions.dup;
     }
 
-    T read(T)(ulong address) {
+    T read(T, A)(A address) {
 
         size_t size = T.sizeof;
 
@@ -115,6 +116,15 @@ class Handle
         process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0);
 
         return buffer[0];
+    }
+
+    string readString(A)(A address)
+    {
+        const ulong size = 256;
+        char[size] strz;
+        strz = read!(char[size])(address);
+        string str = to!string(fromStringz(strz.ptr));
+        return str;
     }
 
     bool read(void* address, void* buffer, size_t size)

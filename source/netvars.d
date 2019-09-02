@@ -1,12 +1,29 @@
 module netvars;
 
+import std.stdio;
 import memory;
 
 struct Netvars
 {
-    void dump(Handle h, ulong clientStateAddress)
+    static void dump(Handle h, ulong clientStateAddress)
     {
-        ClientClass currentClass = h.read!ClientClass(clientStateAddress);
+        ClientClass curObj = h.read!ClientClass(clientStateAddress);
+
+        while(curObj.m_pNext)
+        {
+            if(!curObj.m_pNetworkName)
+                break;
+
+            string networkName = h.readString(curObj.m_pNetworkName);
+            writeln(networkName);
+
+            RecvTable table = h.read!RecvTable(curObj.m_pRecvTable);
+            string tableName = h.readString(table.m_pNetTableName);
+            writeln(tableName);
+
+            // Follow pointer and repeat
+            curObj = h.read!ClientClass(curObj.m_pNext);
+        }
     }
 }
 

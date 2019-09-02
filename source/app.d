@@ -44,29 +44,5 @@ void main()
     write("clientStateAddress : 0x");
     writefln!("%x")(clientStateAddress);
 
-    ClientClass currentClass = handle.read!ClientClass(clientStateAddress);
-    //writeln(fromStringz(handle.read!(char[256])(cast(ulong)currentClass.m_pNetworkName).ptr));
-
-    while(currentClass.m_pNext) {
-        if(!currentClass.m_pNetworkName)
-            break;
-
-        char[256] networkNamez;
-        networkNamez = handle.read!(char[256])(cast(ulong)currentClass.m_pNetworkName);
-        string networkName = to!string(fromStringz(networkNamez.ptr));
-        writeln(networkName, " (", currentClass.m_ClassID, "):");
-
-        RecvTable table = handle.read!RecvTable(cast(ulong)currentClass.m_pRecvTable);
-        writeln("Count: ", table.m_nProps);
-
-        char[256] tableNamez;
-        tableNamez = handle.read!(char[256])(cast(ulong)table.m_pNetTableName);
-        string tableName = to!string(fromStringz(tableNamez.ptr));
-        writeln("Table: ", tableName);
-
-        writeln("Props: ", handle.read!RecvProp(cast(ulong)table.m_pProps).m_nElements);
-        writeln();
-
-        currentClass = handle.read!ClientClass(cast(ulong)currentClass.m_pNext);
-    }
+    Netvars.dump(handle, clientStateAddress);
 }
