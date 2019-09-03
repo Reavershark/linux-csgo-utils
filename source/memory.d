@@ -42,61 +42,23 @@ struct MemoryRegion {
 	ulong inodeFileNumber;
 	string pathname;
 	string filename;
-
-	ulong find(Handle handle, string data, string pattern)
-    {
-		char[0x1000] buffer;
-
-		size_t len = pattern.length;
-		size_t chunksize = buffer.sizeof;
-		size_t totalsize = end - start;
-		size_t chunknum = 0;
-		size_t matches = 0;
-
-		while (totalsize) {
-			size_t readsize = (totalsize < chunksize) ? totalsize : chunksize;
-			size_t readaddr = start + (chunksize * chunknum);
-
-            buffer = 0;
-
-			if (handle.read(cast(void*) readaddr, cast(void*) buffer, readsize)) {
-				for (size_t b = 0; b < readsize; b++) {
-					for (size_t t = b; t < readsize; t++) {
-						if (buffer[t] != data[matches] && pattern[matches] == 'x') {
-							matches = 0;
-							break;
-						}
-						matches++;
-
-						if (matches == len) {
-							return cast(char*) (readaddr + t - matches + 1);
-						}
-					}
-				}
-			}
-
-			totalsize -= readsize;
-			chunknum++;
-		}
-
-		return 0;
-    }
 };
 
-class Handle
+class Process
 {
     private pid_t pid;
-    private MemoryRegion[] regions;
 
     this(pid_t pid)
     {
         this.pid = pid;
-        parseMaps();
     }
+}
 
-    MemoryRegion[] getRegions()
+class Handle : Process
+{
+    this(Args...)(Args args)
     {
-        return regions.dup;
+        super(args);
     }
 
     T read(T, A)(A address) {
@@ -118,15 +80,6 @@ class Handle
         return buffer[0];
     }
 
-    string readString(A)(A address)
-    {
-        const ulong size = 256;
-        char[size] strz;
-        strz = read!(char[size])(address);
-        string str = to!string(fromStringz(strz.ptr));
-        return str;
-    }
-
     bool read(void* address, void* buffer, size_t size)
     {
 		iovec[1] local;
@@ -140,6 +93,54 @@ class Handle
 		return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
     }
 
+    string readString(A)(A address)
+    {
+        const ulong size = 256;
+        char[size] strz;
+        strz = read!(char[size])(address);
+        string str = to!string(fromStringz(strz.ptr));
+        return str;
+    }
+
+	ulong find(MemoryRegion region, string data, string pattern)
+    {
+		char[0x1000] buffer;
+
+		size_t len = pattern.length;
+		size_t chunksize = buffer.sizeof;
+		size_t totalsize = region.end - region.start;
+		size_t chunknum = 0;
+		size_t matches = 0;
+
+		while (totalsize) {
+			size_t readsize = (totalsize < chunksize) ? totalsize : chunksize;
+			size_t readaddr = region.start + (chunksize * chunknum);
+
+            buffer = 0;
+
+			if (read(cast(void*) readaddr, cast(void*) buffer, readsize)) {
+				for (size_t b = 0; b < readsize; b++) {
+					for (size_t t = b; t < readsize; t++) {
+						if (buffer[t] != data[matches] && pattern[matches] == 'x') {
+							matches = 0;
+							break;
+						}
+						matches++;
+
+						if (matches == len) {
+							return cast(char*) (readaddr + t - matches + 1);
+						}
+					}
+				}
+			}
+
+			totalsize -= readsize;
+			chunknum++;
+		}
+
+		return 0;
+    }
+
     ulong GetAbsoluteAddress(void* address, int offset, int size) {
         int code = 0;
     
@@ -148,6 +149,37 @@ class Handle
         }
     
         return 0;
+    }
+
+}
+
+class Maps : Process
+{
+    private MemoryRegion[] regions;
+
+    this(Args...)(Args args)
+    {
+        super(args);
+        parseMaps();
+    }
+
+    MemoryRegion[] getRegions()
+    {
+        return regions.dup;
+    }
+
+    MemoryRegion getFileMap(string targetFilename)
+    {
+        MemoryRegion targetRegion;
+        foreach(region; regions)
+        {
+            if (region.filename == targetFilename)
+            {
+                targetRegion = region;
+                break;
+            }
+        }
+        return targetRegion;
     }
 
     private void parseMaps()
