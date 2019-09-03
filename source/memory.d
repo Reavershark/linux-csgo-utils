@@ -1,7 +1,6 @@
 module memory;
 
 import std.algorithm;
-import std.array;
 import std.conv : to;
 import std.format;
 import std.string : lastIndexOf;
