@@ -1,5 +1,7 @@
 module memory;
 
+import signatures;
+
 import std.algorithm;
 import std.conv : to;
 import std.format;
@@ -24,23 +26,23 @@ pid_t pidof(string name)
 }
 
 struct MemoryRegion {
-	// Memory
-	ulong start = 0;
-	ulong end = 0;
+    // Memory
+    ulong start = 0;
+    ulong end = 0;
 
-	// Permissions
-	bool readable;
-	bool writable;
-	bool executable;
-	bool sharedMemory;
+    // Permissions
+    bool readable;
+    bool writable;
+    bool executable;
+    bool sharedMemory;
 
-	// File data
-	ulong offset;
-	ushort deviceMajor;
-	ushort deviceMinor;
-	ulong inodeFileNumber;
-	string pathname;
-	string filename;
+    // File data
+    ulong offset;
+    ushort deviceMajor;
+    ushort deviceMinor;
+    ulong inodeFileNumber;
+    string pathname;
+    string filename;
 };
 
 class Process
@@ -60,37 +62,40 @@ class Handle : Process
         super(args);
     }
 
-    T read(T, A)(A address) {
-
-        size_t size = T.sizeof;
-
+    T read(T, A)(A address)
+    {
         T[1] buffer;
-
-        iovec[1] local;
-        iovec[1] remote;
-    
-        local[0].iov_base = cast(void*) buffer;
-        local[0].iov_len = size;
-        remote[0].iov_base = cast(void*) address;
-        remote[0].iov_len = size;
-    
-        process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0);
+        read(address, buffer.ptr, T.sizeof);
 
         return buffer[0];
     }
 
-    bool read(void* address, void* buffer, size_t size)
+    // Internal use only
+    private bool read(T, A)(A address, T buffer, size_t size)
     {
-		iovec[1] local;
-		iovec[1] remote;
-
-		local[0].iov_base = buffer;
-		local[0].iov_len = size;
-		remote[0].iov_base = address;
-		remote[0].iov_len = size;
-
-		return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
+        iovec[1] local;
+        iovec[1] remote;
+        
+        local[0].iov_base = cast(void*) buffer;
+        local[0].iov_len = size;
+        remote[0].iov_base = cast(void*) address;
+        remote[0].iov_len = size;
+        
+        return (process_vm_readv(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
     }
+
+    //bool write(T, A)(A address, T buffer, size_t size)
+    //{
+    //    iovec[1] local;
+    //    iovec[1] remote;
+    //    
+    //    local[0].iov_base = cast(void*) buffer;
+    //    local[0].iov_len = size;
+    //    remote[0].iov_base = cast(void*) address;
+    //    remote[0].iov_len = size;
+    //    
+    //    return (process_vm_writev(pid, local.ptr, 1, remote.ptr, 1, 0) == size);
+    //}
 
     string readString(A)(A address)
     {
@@ -101,48 +106,49 @@ class Handle : Process
         return str;
     }
 
-	ulong find(MemoryRegion region, string data, string pattern)
+    ulong find(MemoryRegion region, Signature signature)
     {
-		char[0x1000] buffer;
+        char[0x1000] buffer;
 
-		size_t len = pattern.length;
-		size_t chunksize = buffer.sizeof;
-		size_t totalsize = region.end - region.start;
-		size_t chunknum = 0;
-		size_t matches = 0;
+        size_t len = signature.pattern.length;
+        size_t chunksize = buffer.sizeof;
+        size_t totalsize = region.end - region.start;
+        size_t chunknum = 0;
+        size_t matches = 0;
 
-		while (totalsize) {
-			size_t readsize = (totalsize < chunksize) ? totalsize : chunksize;
-			size_t readaddr = region.start + (chunksize * chunknum);
+        while (totalsize) {
+            size_t readsize = (totalsize < chunksize) ? totalsize : chunksize;
+            size_t readaddr = region.start + (chunksize * chunknum);
 
             buffer = 0;
 
-			if (read(cast(void*) readaddr, cast(void*) buffer, readsize)) {
-				for (size_t b = 0; b < readsize; b++) {
-					for (size_t t = b; t < readsize; t++) {
-						if (buffer[t] != data[matches] && pattern[matches] == 'x') {
-							matches = 0;
-							break;
-						}
-						matches++;
+            if (read(readaddr, buffer.ptr, readsize))
+            {
+                for (size_t b = 0; b < readsize; b++) {
+                    for (size_t t = b; t < readsize; t++) {
+                        if (buffer[t] != signature.data[matches] && signature.pattern[matches] == 'x') {
+                            matches = 0;
+                            break;
+                        }
+                        matches++;
 
-						if (matches == len) {
-							return cast(char*) (readaddr + t - matches + 1);
-						}
-					}
-				}
-			}
+                        if (matches == len) {
+                            return cast(char*) (readaddr + t - matches + 1 + signature.sigOffset);
+                        }
+                    }
+                }
+            }
 
-			totalsize -= readsize;
-			chunknum++;
-		}
+            totalsize -= readsize;
+            chunknum++;
+        }
 
-		return 0;
+        return 0;
     }
 
     ulong GetAbsoluteAddress(void* address, int offset, int size) {
         int code = 0;
-    
+
         if (read(cast(char*) (cast(ulong) address + offset), &code, uint.sizeof)) {
             return code + cast(ulong) address + size;
         }

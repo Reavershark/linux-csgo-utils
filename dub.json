@@ -8,5 +8,7 @@
 	},
 	"description": "Light csgo hack",
 	"license": "proprietary",
-	"name": "linux-csgo-dlang"
+	"name": "linux-csgo-dlang",
+    "libs": ["stdc++", "x11", "xfixes", "Xtst", "Xi", "m", "Xcomposite", "Xext", "config++"],
+    "source": ["source/draw.o"]
 }
