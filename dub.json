@@ -1,8 +1,8 @@
 {
 	"authors": [
-		"jonas"
+		"Jonas Meeuws"
 	],
-	"copyright": "Copyright © 2019, jonas",
+	"copyright": "Copyright © 2019, Jonas Meeuws",
 	"dependencies": {
 		"cairod": ">=0.0.1-alpha.3+1.10.2 <0.1.0-0",
 		"x11": "~>1.0.21"
