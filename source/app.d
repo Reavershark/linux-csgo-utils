@@ -48,10 +48,11 @@ void main()
     {
         Thread.sleep(dur!("usecs")(1));
     }
+    int i;
     while(true)
     {
         draw.start();
-        draw.drawCrossHair(0, 0);
+        draw.drawCrossHair(i++, 0);
         draw.end();
         Thread.sleep(dur!("msecs")(1));
     }

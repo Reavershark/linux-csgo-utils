@@ -70,14 +70,16 @@ class Draw
         XFixesDestroyRegion (display, region);
         XMapWindow(display, overlay);
 
+        surf = cairo_xlib_surface_create(display, overlay, vinfo.visual, width, height);
+        cr = cairo_create(surf);
+
         initialized = true;
         while (true) {}
     }
 
     void start()
     {
-        surf = cairo_xlib_surface_create(display, overlay, vinfo.visual, width, height);
-        cr = cairo_create(surf);
+        XClearWindow(display, overlay);
     }
 
     void drawCrossHair(int xOffset, int yOffset)
@@ -98,8 +100,6 @@ class Draw
     void end()
     {
         XFlush(display);
-        cairo_destroy(cr);
-        cairo_surface_destroy(surf);
     }
 
     void close()
