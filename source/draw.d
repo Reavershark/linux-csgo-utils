@@ -7,33 +7,21 @@ import cairo.cairo;
 import cairo.c.cairo;
 import cairo.c.xlib;
 
+import core.thread;
+
 class Draw
 {
-    Display* display;
-    Window root;
-    int screen;
-    int width;
-    int height;
+    private Display* display;
+    private Window overlay;
+    private int screen;
+    private int width;
+    private int height;
+    private int scale;
 
-    XVisualInfo vinfo;
-    Window overlay;
+    private cairo_surface_t* surf;
+    private cairo_t* cr;
 
-    cairo_surface_t* surf;
-    cairo_t* cr;
-    
     this()
-    {
-        openDisplay();
-        createOverlay();
-
-        surf = cairo_xlib_surface_create(display, overlay, vinfo.visual, 200, 200);
-        cr = cairo_create(surf);
-        drawRectangle(cr);
-
-        XFlush(display);
-    }
-
-    void openDisplay()
     {
         display = XOpenDisplay(null);
         if (!display)
@@ -45,43 +33,57 @@ class Draw
         width = DisplayWidth(display, screen);
         height = DisplayHeight(display, screen);
 
-        root = DefaultRootWindow(display);
-    }
+        XVisualInfo vinfo;
+        Window root = DefaultRootWindow(display);
 
-    void createOverlay()
-    {
         XSetWindowAttributes attrs;
         attrs.override_redirect = true;
-        //overlay = XCreateWindow(
-        //    display, root,
-        //    0, 0, 200, 200, 0,
-        //    vinfo.depth, InputOutput,
-        //    vinfo.visual,
-        //    CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel, &attrs
-        //);
-
+        if (!XMatchVisualInfo(display, DefaultScreen(display), 32, TrueColor, &vinfo)) {
+            throw new Exception("No 32-bit depth / TrueColor support");
+        }
+        attrs.colormap = XCreateColormap(display, root, vinfo.visual, AllocNone);
+        attrs.background_pixel = 0;
+        attrs.border_pixel = 0;
         overlay = XCreateWindow(
             display, root,
-            0, 0, 200, 200, 0,
+            0, 0, width, height, 0,
             vinfo.depth, InputOutput,
             vinfo.visual,
             CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel, &attrs
         );
         XMapWindow(display, overlay);
+
+        surf = cairo_xlib_surface_create(display, overlay, vinfo.visual, width, height);
+        cr = cairo_create(surf);
+        cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.0);
+        cairo_rectangle(cr, 0, 0, width, height);
+        cairo_fill(cr);
+
+        XFlush(display);
+
+        Thread.sleep(dur!("seconds")(1));
+
+        cairo_destroy(cr);
+        cairo_surface_destroy(surf);
     }
 
-    void drawRectangle(cairo_t *cr)
+    void startDraw()
     {
-        cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 0.5);
-        cairo_rectangle(cr, 0, 0, 200, 200);
-        cairo_fill(cr);
+    
+    }
+
+    void drawCrossHair()
+    {
+
+    }
+
+    void endDraw()
+    {
+    
     }
 
     void close()
     {
-        cairo_destroy(cr);
-        cairo_surface_destroy(surf);
-
         XUnmapWindow(display, overlay);
         XCloseDisplay(display);
     }
