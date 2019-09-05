@@ -24,13 +24,9 @@ void main()
     ulong localPlayerPtr = addresses.getLocalPlayerPtr(handle);
     write("localPlayer: 0x");
     writefln!("%x")(localPlayerPtr);
-    */
-
-    Draw draw();
 
     while (true)
     {
-        /*
         ulong localPlayer = handle.read!ulong(localPlayerPtr);
 
         // Recoil angle
@@ -39,10 +35,12 @@ void main()
 
         //handle.write(angleAddr, &angle, QAngle.sizeof);
         writeln("Pitch/Yaw: ", angle.x, " ", angle.y);
-        */
 
-        Thread.sleep( dur!("usecs")( 1_000_000  / 240_000 ) );
+        Thread.sleep(dur!("msecs")(50));
     }
+    */
+
+    Draw draw = new Draw();
 }
 
 struct QAngle {
