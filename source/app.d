@@ -5,6 +5,7 @@ import netvars;
 import address;
 import memory;
 import draw;
+import hack;
 
 import std.conv : to;
 
@@ -14,7 +15,12 @@ void main()
     Handle handle = new Handle(pid);
     Addresses addresses = new Addresses(pid);
 
-    ulong clientState = addresses.getClientState(handle);
+    ulong clientState = 0;
+    while (clientState == 0)
+    {
+        clientState = addresses.getClientState(handle);
+        Thread.sleep(dur!("msecs")(1));
+    }
     write("clientState: 0x");
     writefln!("%x")(clientState);
 
@@ -34,21 +40,19 @@ void main()
     while(true)
     {
         ulong localPlayer = handle.read!ulong(localPlayerPtr);
-        // Recoil angle
-        ulong angleAddr = localPlayer + 0x3700 + 0x74;
-	    QAngle angle = handle.read!QAngle(angleAddr);
-        //writeln("Pitch/Yaw: ", angle.x, " ", angle.y);
+        if (localPlayer)
+        {
+            // Recoil angle
+            ulong angleAddr = localPlayer + 0x3700 + 0x74;
+	        QAngle angle = handle.read!QAngle(angleAddr);
+            //writeln("Pitch/Yaw: ", angle.x, " ", angle.y);
 
-        draw.start();
-        draw.drawCrossHair(to!int(angle.y*20), to!int(angle.x*-20));
-        draw.end();
-        Thread.sleep(dur!("usecs")(100_000/60));
+            draw.start();
+            draw.drawCrossHair(to!int(angle.y*20), to!int(angle.x*-20));
+            draw.end();
+            Thread.sleep(dur!("usecs")(100_000/60));
+        }
     }
     //draw.close();
 }
 
-struct QAngle {
-	float x; // Pitch
-	float y; // Yaw
-	float z; // Roll
-}
