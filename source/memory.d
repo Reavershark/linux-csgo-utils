@@ -21,7 +21,11 @@ pid_t pidof(string name)
     scope(exit) wait(pipes.pid);
 
     // Only return first match
-    pid_t pid = to!pid_t(pipes.stdout.readln.split("\n")[0].split(" ")[0]);
+    pid_t pid;
+    try
+        pid = to!pid_t(pipes.stdout.readln.split("\n")[0].split(" ")[0]);
+    catch (core.exception.RangeError e)
+        throw new Exception("No process named ", name);
     return pid;
 }
 

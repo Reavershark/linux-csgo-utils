@@ -40,18 +40,13 @@ void main()
     while(true)
     {
         ulong localPlayer = handle.read!ulong(localPlayerPtr);
+        draw.start();
         if (localPlayer)
         {
-            // Recoil angle
-            ulong angleAddr = localPlayer + 0x3700 + 0x74;
-	        QAngle angle = handle.read!QAngle(angleAddr);
-            //writeln("Pitch/Yaw: ", angle.x, " ", angle.y);
-
-            draw.start();
-            draw.drawCrossHair(to!int(angle.y*20), to!int(angle.x*-20));
-            draw.end();
-            Thread.sleep(dur!("usecs")(100_000/60));
+            recoilCrossHair(handle, draw, localPlayer);
         }
+        draw.end();
+        Thread.sleep(dur!("nsecs")(1_000_000_000/60));
     }
     //draw.close();
 }
