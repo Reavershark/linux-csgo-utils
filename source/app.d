@@ -18,7 +18,7 @@ void main()
     write("clientState: 0x");
     writefln!("%x")(clientState);
 
-    Netvars.dump(handle, clientState);
+    //Netvars.dump(handle, clientState);
 
     ulong localPlayerPtr = addresses.getLocalPlayerPtr(handle);
     write("localPlayer: 0x");
@@ -40,9 +40,9 @@ void main()
         //writeln("Pitch/Yaw: ", angle.x, " ", angle.y);
 
         draw.start();
-        //draw.drawCrossHair(to!int(angle.x), to!int(angle.y));
+        draw.drawCrossHair(to!int(angle.y*20), to!int(angle.x*-20));
         draw.end();
-        Thread.sleep(dur!("msecs")(1));
+        Thread.sleep(dur!("usecs")(100_000/60));
     }
     //draw.close();
 }
