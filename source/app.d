@@ -7,6 +7,7 @@ import memory;
 import draw;
 
 import std.conv : to;
+import std.concurrency : spawn;
 
 void main()
 {
@@ -41,6 +42,20 @@ void main()
     */
 
     Draw draw = new Draw();
+    new Thread({draw.init();}).start();
+
+    while(!draw.initialized)
+    {
+        Thread.sleep(dur!("usecs")(1));
+    }
+    while(true)
+    {
+        draw.start();
+        draw.drawCrossHair(0, 0);
+        draw.end();
+        Thread.sleep(dur!("msecs")(1));
+    }
+    //draw.close();
 }
 
 struct QAngle {

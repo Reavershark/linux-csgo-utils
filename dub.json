@@ -10,5 +10,6 @@
     "versions": ["CairoXlibSurface"],
 	"description": "Light csgo hack",
 	"license": "proprietary",
-	"name": "linux-csgo-dlang"
+	"name": "linux-csgo-dlang",
+    "libs": ["Xfixes"]
 }
